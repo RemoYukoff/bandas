@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%221%22 y=%226%22 width=%2214%22 height=%224%22 rx=%222%22 fill=%22%235b9bd5%22/%3E%3Ccircle cx=%2210%22 cy=%228%22 r=%223%22 fill=%22%2315243a%22 stroke=%22%23e0a526%22 stroke-width=%221.5%22/%3E%3C/svg%3E">
+<title>Dólar y Bandas</title>
+<meta name="description" content="Dólar mayorista frente al piso y techo de la banda cambiaria del BCRA desde marzo de 2025.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #eef2f5;
+    --ink: #15243a;
+    --ink-soft: #5e6b7c;
+    --grid: #dbe2e9;
+    --band: #3c78b4;
+    --band-fill: rgba(91, 155, 213, 0.12);
+    --track: #cfdbe7;
+    --sol: #c98a0e;
+    --sol-ring: #e0a526;
+    --sol-fill: rgba(201, 138, 14, 0.13);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #0c1522;
+      --ink: #e9eef4;
+      --ink-soft: #8e9aab;
+      --grid: #1c2838;
+      --band: #7fb6ee;
+      --band-fill: rgba(127, 182, 238, 0.13);
+      --track: #1f3048;
+      --sol: #f2b940;
+      --sol-ring: #f2b940;
+      --sol-fill: rgba(242, 185, 64, 0.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #0c1522;
+    --ink: #e9eef4;
+    --ink-soft: #8e9aab;
+    --grid: #1c2838;
+    --band: #7fb6ee;
+    --band-fill: rgba(127, 182, 238, 0.13);
+    --track: #1f3048;
+    --sol: #f2b940;
+    --sol-ring: #f2b940;
+    --sol-fill: rgba(242, 185, 64, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 15px/1.45 "Archivo", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    display: flex; flex-direction: column;
+    min-height: 100vh; min-height: 100dvh;
+    padding: clamp(16px, 3vw, 40px) clamp(16px, 4vw, 56px) 20px;
+  }
+
+  /* Rail: the band as a corridor, dollar placed along it. */
+  .rail {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "piso track techo";
+    align-items: end;
+    gap: 0 clamp(16px, 2.5vw, 32px);
+    margin-bottom: clamp(16px, 3vh, 36px);
+  }
+  .end { display: flex; flex-direction: column; line-height: 1.1; }
+  .end.piso { grid-area: piso; }
+  .end.techo { grid-area: techo; text-align: right; }
+  .name { font-size: 14px; color: var(--ink-soft); font-stretch: 100%; }
+  .num { font-size: clamp(20px, 2.2vw, 28px); font-weight: 500; font-stretch: 88%; letter-spacing: -0.01em; }
+
+  .track-wrap { grid-area: track; position: relative; padding-top: clamp(64px, 7vw, 84px); }
+  .track { position: relative; height: 10px; border-radius: 2px; background: var(--track); }
+  .track::before, .track::after {
+    content: ""; position: absolute; top: -5px; bottom: -5px; width: 2px; border-radius: 1px; background: var(--band);
+  }
+  .track::before { left: 0; }
+  .track::after { right: 0; }
+  .marker {
+    position: absolute; left: var(--x, 0%); top: 0; bottom: 0;
+    transition: left 900ms cubic-bezier(.2, .8, .2, 1);
+  }
+  .marker .label {
+    position: absolute; left: 0; top: 0; white-space: nowrap; line-height: 1.05;
+    transform: translateX(calc(var(--x, 0%) * -1));
+    transition: transform 900ms cubic-bezier(.2, .8, .2, 1);
+  }
+  .marker .num {
+    display: block;
+    font-size: clamp(30px, 4.4vw, 56px); font-weight: 750; font-stretch: 112%; letter-spacing: -0.02em;
+  }
+  .pin {
+    position: absolute; bottom: -4px; left: 0; transform: translateX(-50%);
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--ink); border: 3px solid var(--sol-ring);
+    box-shadow: 0 0 0 3px var(--paper);
+  }
+  .pin::before {
+    content: ""; position: absolute; left: 50%; bottom: 100%; width: 2px; height: 12px;
+    transform: translateX(-50%); background: var(--ink); opacity: .35;
+  }
+
+  .chart-wrap { position: relative; flex: 1; min-height: 300px; }
+
+  /* Monthly pace: dollar trend and latest inflation as bars on one shared scale. */
+  .pace {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+    gap: 14px clamp(14px, 2vw, 24px);
+    width: min(100%, 640px); margin: 28px auto 8px; padding: 0; list-style: none;
+  }
+  .pace li { display: contents; }
+  .pace .who { display: flex; flex-direction: column; line-height: 1.1; }
+  .pace .who .name { color: var(--ink); font-weight: 600; }
+  .pace .sub { font-size: 12px; color: var(--ink-soft); }
+  .pace .bar { height: 10px; border-radius: 2px; background: var(--track); overflow: hidden; }
+  .pace .bar i {
+    display: block; height: 100%; width: var(--w, 0%); border-radius: 2px; background: var(--ink);
+    transition: width 900ms cubic-bezier(.2, .8, .2, 1);
+  }
+  .pace .usd .bar i { background: var(--sol-ring); }
+  .pace .num { font-size: clamp(20px, 2.4vw, 28px); font-weight: 650; font-stretch: 100%; text-align: right; min-width: 3.4em; }
+  .pace .usd .num { color: var(--sol); }
+
+  footer { margin-top: 16px; font-size: 13px; color: var(--ink-soft); text-align: center; }
+  footer .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 20px; margin-top: 2px; }
+  footer a { color: var(--ink); text-decoration-color: var(--band); text-underline-offset: 3px; }
+  footer a:hover { text-decoration-color: var(--sol-ring); }
+  a:focus-visible { outline: 2px solid var(--sol-ring); outline-offset: 3px; border-radius: 2px; }
+  .error { color: var(--ink); }
+
+  @media (max-width: 640px) {
+    .rail {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas: "track track" "piso techo";
+      gap: 10px 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .marker, .marker .label, .pace .bar i { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="rail" id="rail" aria-live="polite">
+    <div class="end piso"><span class="name">Piso</span><span class="num" id="v-piso">–</span></div>
+    <div class="track-wrap">
+      <div class="track"></div>
+      <div class="marker" id="marker">
+        <div class="label"><span class="name">Dólar</span><span class="num" id="v-dolar">–</span></div>
+        <i class="pin" aria-hidden="true"></i>
+      </div>
+    </div>
+    <div class="end techo"><span class="name">Techo</span><span class="num" id="v-techo">–</span></div>
+  </section>
+
+  <div class="chart-wrap"><canvas id="chart" role="img" aria-label="Gráfico de líneas del dólar mayorista, el piso y el techo de la banda cambiaria desde abril de 2025, con una proyección a seis meses"></canvas></div>
+
+  <ul class="pace" aria-live="polite" aria-label="Suba mensual del dólar frente a la inflación">
+    <li class="usd">
+      <span class="who"><span class="name">Dólar</span><span class="sub">tendencia mensual</span></span>
+      <span class="bar" aria-hidden="true"><i id="b-dolar"></i></span>
+      <span class="num" id="s-dolar">–</span>
+    </li>
+    <li class="inf">
+      <span class="who"><span class="name">Inflación</span><span class="sub" id="s-inf-sub">último mes</span></span>
+      <span class="bar" aria-hidden="true"><i id="b-inf"></i></span>
+      <span class="num" id="s-inf">–</span>
+    </li>
+  </ul>
+
+  <footer>
+    <div>Fuentes:</div>
+    <div class="links">
+      <a href="https://www.bcra.gob.ar/archivos/Pdfs/PublicacionesEstadisticas/serie-completa-bandas-cambiarias.xlsx" target="_blank" rel="noopener">BCRA, bandas cambiarias</a>
+      <a href="https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/5" target="_blank" rel="noopener">BCRA, dólar mayorista A3500</a>
+      <a href="https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/27" target="_blank" rel="noopener">BCRA, inflación mensual</a>
+    </div>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(async function () {
+  const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct = new Intl.NumberFormat("es-AR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const longDate = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const monthName = new Intl.DateTimeFormat("es-AR", { month: "short", timeZone: "UTC" });
+  const monthLong = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric", timeZone: "UTC" });
+  const asDate = iso => new Date(iso + "T00:00:00Z");
+  const TOOLTIP_ORDER = ["Dólar", "Tendencia", "Proyección", "Techo", "Piso"];
+  const A3500_API = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/5";
+  const INFLACION_API = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/27";
+
+  const CEPO = "2025-04-14";
+  const DOLAR_START = "2025-03-14"; // a month of context before the band
+
+  // Everything is fetched live, in parallel: band from BCRA's xlsx (via /api/bandas),
+  // dollar and inflation from the BCRA API. Band and dollar are required; inflation only
+  // feeds the comparison bars.
+  const timeout = () => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; };
+  const getJson = async url => { const r = await fetch(url, { signal: timeout() }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
+  const [band, dol, inf] = await Promise.allSettled([
+    getJson("/api/bandas"),
+    getJson(`${A3500_API}?desde=${DOLAR_START}&limit=3000`),
+    getJson(`${INFLACION_API}?desde=${CEPO}&limit=3000`)
+  ]);
+  if (band.status === "rejected" || dol.status === "rejected") {
+    const err = band.reason ?? dol.reason;
+    document.getElementById("rail").innerHTML = `<p class="error">No se pudieron cargar los datos del BCRA (${err.message}). Probá recargar en unos minutos.</p>`;
+    return;
+  }
+  const data = { bandas: band.value.rows };
+  const dolar = new Map(dol.value.results[0].detalle.map(r => [r.fecha, r.valor]));
+  const inflacion = new Map(inf.status === "fulfilled" ? inf.value.results[0].detalle.map(r => [r.fecha, r.valor]) : []);
+
+  // "Today" = last band date on or before the local date.
+  const now = new Date();
+  const todayIso = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+  const bandStart = data.bandas[0].fecha;
+  // Regime milestones, drawn as dotted lines (cepo lifted and band in force the same day).
+  const EVENTS = [
+    { fecha: CEPO, label: "Fin del cepo" }
+  ];
+
+  // Projection. Trend: log-linear regression on post-cepo quotes (constant % per day).
+  // The path starts at the last quote (backtests beat the regression line itself) and the
+  // 80% range widens with daily volatility × √(trading days ahead).
+  const HORIZON_MONTHS = 6;
+  const Z80 = 1.2816;
+  const DAY = 864e5;
+  const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  function model() {
+    const obs = [...dolar].filter(([f]) => f >= CEPO).sort(([p], [q]) => (p < q ? -1 : 1));
+    const xs = obs.map(([f]) => asDate(f) / DAY), ys = obs.map(([, v]) => Math.log(v));
+    const mx = mean(xs), my = mean(ys);
+    let sxy = 0, sxx = 0;
+    xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; });
+    const rets = ys.slice(1).map((y, i) => y - ys[i]), mr = mean(rets);
+    const sigma = Math.sqrt(rets.reduce((s, r) => s + (r - mr) ** 2, 0) / (rets.length - 1));
+    return { slope: sxy / sxx, sigma, n: obs.length };
+  }
+
+  let rows, idx;
+  function fill() {
+    // Month of dollar-only context before the band, then the band series.
+    const pre = [...dolar.keys()].filter(f => f < bandStart).sort().map(fecha => ({ fecha, piso: null, techo: null }));
+    // Days without a quote (holidays) carry the last available value, up to the latest quote.
+    const lastQuote = [...dolar.keys()].sort().at(-1);
+    let prev = null;
+    rows = [...pre, ...data.bandas].map(b => {
+      const v = dolar.get(b.fecha);
+      if (v != null) prev = v;
+      const carried = v == null && prev != null && b.fecha <= lastQuote;
+      return { ...b, dolar: v ?? (carried ? prev : null) };
+    });
+    // Weekdays after the band series, up to the projection horizon.
+    const end = asDate(lastQuote);
+    end.setUTCMonth(end.getUTCMonth() + HORIZON_MONTHS);
+    for (let d = asDate(rows.at(-1).fecha); ; ) {
+      d = new Date(+d + DAY);
+      if (d > end) break;
+      if (d.getUTCDay() % 6) rows.push({ fecha: d.toISOString().slice(0, 10), piso: null, techo: null, dolar: null });
+    }
+    const m = model();
+    const q = rows.findIndex(r => r.fecha === lastQuote);
+    const base = dolar.get(lastQuote);
+    rows.forEach((r, i) => {
+      if (q < 0 || i < q || r.fecha > end.toISOString().slice(0, 10)) return;
+      const mid = base * Math.exp(m.slope * (asDate(r.fecha) - asDate(lastQuote)) / DAY);
+      const w = Z80 * m.sigma * Math.sqrt(i - q);
+      Object.assign(r, { proy: mid, lo: mid * Math.exp(-w), hi: mid * Math.exp(w) });
+    });
+    // The projection's center line carried back to the cepo, to compare past prices against it.
+    rows.forEach(r => {
+      if (r.fecha >= CEPO && r.fecha <= lastQuote) r.trend = base * Math.exp(m.slope * (asDate(r.fecha) - asDate(lastQuote)) / DAY);
+    });
+    rows = rows.filter(r => r.fecha <= end.toISOString().slice(0, 10));
+
+    // Dollar trend vs the latest published monthly inflation, bars scaled to the larger one.
+    const signed = v => (v > 0 ? "+" : "") + pct.format(v);
+    const usdPace = Math.exp(m.slope * 365.25 / 12) - 1;
+    const lastInf = [...inflacion].sort(([p], [q]) => (p < q ? -1 : 1)).at(-1);
+    const infPace = lastInf ? lastInf[1] / 100 : null;
+    const top = Math.max(usdPace, infPace ?? 0);
+    const setBar = (id, v) => requestAnimationFrame(() => requestAnimationFrame(() =>
+      document.getElementById(id).style.setProperty("--w", (Math.max(0, v) / top * 100).toFixed(1) + "%")));
+    document.getElementById("s-dolar").textContent = signed(usdPace);
+    setBar("b-dolar", usdPace);
+    if (lastInf) {
+      document.getElementById("s-inf").textContent = signed(infPace);
+      document.getElementById("s-inf-sub").textContent = monthLong.format(asDate(lastInf[0]));
+      setBar("b-inf", infPace);
+    }
+
+    idx = Math.max(0, rows.findLastIndex(r => r.fecha <= todayIso));
+    const cur = rows[idx];
+    const lastD = rows.findLast(r => r.dolar != null);
+
+    document.getElementById("v-piso").textContent = money.format(cur.piso);
+    document.getElementById("v-techo").textContent = money.format(cur.techo);
+    document.getElementById("v-dolar").textContent = money.format(lastD.dolar);
+    const x = Math.min(1, Math.max(0, (lastD.dolar - lastD.piso) / (lastD.techo - lastD.piso)));
+    // Start at the floor, then slide to position on the next frame (the one load animation).
+    requestAnimationFrame(() => requestAnimationFrame(() =>
+      document.getElementById("marker").style.setProperty("--x", (x * 100).toFixed(2) + "%")));
+  }
+
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // Vertical crosshair at the hovered point plus a dashed "hoy" marker.
+  const guides = {
+    id: "guides",
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea: a, scales: { x } } = chart;
+      ctx.save();
+      const tx = x.getPixelForValue(idx);
+      ctx.strokeStyle = css("--sol");
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1.25;
+      ctx.beginPath(); ctx.moveTo(tx, a.top); ctx.lineTo(tx, a.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = css("--sol");
+      ctx.font = "600 12px Archivo, system-ui, sans-serif";
+      ctx.textAlign = tx > a.right - 40 ? "right" : "left";
+      ctx.fillText("hoy", tx + (ctx.textAlign === "right" ? -4 : 4), a.top + 12);
+      // Milestones: dotted, labels stacked to the right of each line.
+      ctx.strokeStyle = css("--ink-soft");
+      ctx.fillStyle = css("--ink-soft");
+      ctx.font = "500 12px Archivo, system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.lineWidth = 1.25;
+      ctx.lineCap = "round";
+      ctx.setLineDash([0.1, 4]);
+      EVENTS.forEach((ev, k) => {
+        const i = rows.findIndex(r => r.fecha >= ev.fecha);
+        if (i < 0) return;
+        const ex = x.getPixelForValue(i);
+        ctx.beginPath(); ctx.moveTo(ex, a.top); ctx.lineTo(ex, a.bottom); ctx.stroke();
+        ctx.fillText(ev.label, ex + 5, a.top + 12 + k * 16);
+      });
+      ctx.setLineDash([]);
+      ctx.lineCap = "butt";
+      ctx.lineWidth = 1;
+      const active = chart.tooltip?.getActiveElements?.() ?? [];
+      if (active.length) {
+        const hx = active[0].element.x;
+        ctx.strokeStyle = css("--ink-soft");
+        ctx.beginPath(); ctx.moveTo(hx, a.top); ctx.lineTo(hx, a.bottom); ctx.stroke();
+      }
+      // Horizontal rule at the pointer, with its value in the y-axis gutter.
+      const hy = chart.$hoverY;
+      if (hy != null) {
+        ctx.strokeStyle = css("--ink-soft");
+        ctx.beginPath(); ctx.moveTo(a.left, hy); ctx.lineTo(a.right, hy); ctx.stroke();
+        const text = "$" + Math.round(chart.scales.y.getValueForPixel(hy)).toLocaleString("es-AR");
+        ctx.font = "600 11px Archivo, system-ui, sans-serif";
+        const w = ctx.measureText(text).width + 8;
+        ctx.fillStyle = css("--ink");
+        ctx.beginPath(); ctx.roundRect(a.left - w - 2, hy - 9, w, 18, 4); ctx.fill();
+        ctx.fillStyle = css("--paper");
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(text, a.left - w / 2 - 2, hy);
+      }
+      ctx.restore();
+    },
+    afterEvent(chart, args) {
+      const { event: e, inChartArea } = args;
+      const y = e.type !== "mouseout" && inChartArea ? e.y : null;
+      if (y !== chart.$hoverY) { chart.$hoverY = y; args.changed = true; }
+    }
+  };
+
+  // Month ticks; on narrow charts only every third month. January shows the year.
+  function monthTick(i, every) {
+    const f = rows[i].fecha;
+    // Skip the partial first month so its label doesn't collide with the next.
+    if (i === 0 || f.slice(5, 7) === rows[i - 1].fecha.slice(5, 7)) return null;
+    const m = Number(f.slice(5, 7));
+    if ((m - 1) % every !== 0) return null;
+    const name = monthName.format(asDate(f)).replace(".", "");
+    const firstTick = !rows.slice(0, i).some((r, j) => j > 0 && r.fecha.slice(5, 7) !== rows[j - 1].fecha.slice(5, 7));
+    return m === 1 || firstTick ? `${name} ${f.slice(2, 4)}` : name;
+  }
+
+  let chart;
+  function render() {
+    chart?.destroy();
+    const canvas = document.getElementById("chart");
+    const every = canvas.parentElement.clientWidth < 600 ? 3 : 1;
+    chart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: rows.map(r => r.fecha),
+        datasets: [
+          { label: "Dólar", data: rows.map(r => r.dolar), borderColor: css("--ink"), borderWidth: 2.25, spanGaps: true, fill: false },
+          { label: "Techo", data: rows.map(r => r.techo), borderColor: css("--band"), backgroundColor: css("--band-fill"), fill: "+1", borderWidth: 1.5 },
+          { label: "Piso", data: rows.map(r => r.piso), borderColor: css("--band"), fill: false, borderWidth: 1.5 },
+          { label: "Tendencia", data: rows.map(r => r.trend ?? null), borderColor: css("--sol"), borderDash: [2, 4], borderWidth: 1.5, fill: false },
+          { label: "Proyección", data: rows.map(r => r.proy ?? null), borderColor: css("--sol"), borderDash: [6, 4], borderWidth: 2, fill: false },
+          { label: "Máx. 80 %", range: true, data: rows.map(r => r.hi ?? null), borderColor: "transparent", backgroundColor: css("--sol-fill"), fill: "+1", pointHoverRadius: 0 },
+          { label: "Mín. 80 %", range: true, data: rows.map(r => r.lo ?? null), borderColor: "transparent", fill: false, pointHoverRadius: 0 }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        elements: {
+          line: { borderWidth: 2, tension: 0 },
+          point: { radius: 0, hoverRadius: 5, hoverBorderWidth: 2, hoverBorderColor: css("--paper") }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { color: css("--grid") },
+            ticks: { color: css("--ink-soft"), maxRotation: 0, autoSkip: false, callback: (v, i) => monthTick(i, every) }
+          },
+          y: {
+            grid: { color: css("--grid") },
+            border: { display: false },
+            ticks: { color: css("--ink-soft"), padding: 8, callback: v => "$" + v.toLocaleString("es-AR") }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: css("--ink"),
+            titleColor: css("--paper"), bodyColor: css("--paper"),
+            titleFont: { weight: "600" }, cornerRadius: 6, caretSize: 0,
+            padding: 12, boxPadding: 5, usePointStyle: true,
+            // Hide the range rows, and the projection on the last quote (same value as Dólar).
+            filter: item => item.parsed.y != null && !item.dataset.range && !(item.dataset.label === "Proyección" && rows[item.dataIndex].dolar != null),
+            itemSort: (p, q) => TOOLTIP_ORDER.indexOf(p.dataset.label) - TOOLTIP_ORDER.indexOf(q.dataset.label),
+            callbacks: {
+              title: items => longDate.format(asDate(items[0].label)),
+              label: item => {
+                const r = rows[item.dataIndex];
+                const extra = item.dataset.label === "Proyección" ? ` (80 %: ${money.format(r.lo)} a ${money.format(r.hi)})`
+                  : item.dataset.label === "Dólar" && r.trend ? ` (${r.dolar >= r.trend ? "+" : ""}${pct.format(r.dolar / r.trend - 1)} vs tendencia)`
+                  : "";
+                return ` ${item.dataset.label}: ${money.format(item.parsed.y)}${extra}`;
+              },
+              labelColor: item => ({ borderColor: css("--paper"), borderWidth: 1, backgroundColor: ["Dólar", "Tendencia", "Proyección"].includes(item.dataset.label) ? css("--sol-ring") : item.dataset.borderColor })
+            }
+          }
+        }
+      },
+      plugins: [guides]
+    });
+  }
+
+  await document.fonts?.ready;
+  Chart.defaults.font.family = "Archivo, system-ui, sans-serif";
+  fill();
+  render();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  let lastWidth = document.getElementById("chart").parentElement.clientWidth;
+  window.addEventListener("resize", () => {
+    const w = document.getElementById("chart").parentElement.clientWidth;
+    if ((w < 600) !== (lastWidth < 600)) render();
+    lastWidth = w;
+  });
+})();
+</script>
+</body>
+</html>
