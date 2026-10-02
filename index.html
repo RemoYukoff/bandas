@@ -134,8 +134,12 @@
   .pace .num { font-size: clamp(20px, 2.4vw, 28px); font-weight: 650; font-stretch: 100%; text-align: right; min-width: 3.4em; }
   .pace .usd .num { color: var(--sol); }
 
-  footer { margin-top: 16px; font-size: 13px; color: var(--ink-soft); text-align: center; }
-  footer .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 20px; margin-top: 2px; }
+  /* Sources on the left, repo pushed to the right; stacks on narrow screens. */
+  footer {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px;
+    margin-top: 16px; font-size: 13px; color: var(--ink-soft);
+  }
+  footer .links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 20px; }
   footer a { color: var(--ink); text-decoration-color: var(--band); text-underline-offset: 3px; }
   footer a:hover { text-decoration-color: var(--sol-ring); }
   a:focus-visible { outline: 2px solid var(--sol-ring); outline-offset: 3px; border-radius: 2px; }
@@ -171,7 +175,7 @@
 
   <ul class="pace" aria-live="polite" aria-label="Suba mensual del dólar frente a la inflación">
     <li class="usd">
-      <span class="who"><span class="name">Dólar</span><span class="sub">tendencia mensual</span></span>
+      <span class="who"><span class="name">Dólar</span><span class="sub">proyección mensual</span></span>
       <span class="bar" aria-hidden="true"><i id="b-dolar"></i></span>
       <span class="num" id="s-dolar">–</span>
     </li>
@@ -183,12 +187,13 @@
   </ul>
 
   <footer>
-    <div>Fuentes:</div>
     <div class="links">
+      <span>Fuentes:</span>
       <a href="https://www.bcra.gob.ar/archivos/Pdfs/PublicacionesEstadisticas/serie-completa-bandas-cambiarias.xlsx" target="_blank" rel="noopener">BCRA, bandas cambiarias</a>
       <a href="https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/5" target="_blank" rel="noopener">BCRA, dólar mayorista A3500</a>
       <a href="https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/27" target="_blank" rel="noopener">BCRA, inflación mensual</a>
     </div>
+    <div><a href="https://github.com/RemoYukoff/bandas" target="_blank" rel="noopener">GitHub</a></div>
   </footer>
 </main>
 
